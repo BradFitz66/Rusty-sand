@@ -1,0 +1,11 @@
+[package]
+name = "FSG"
+version = "0.1.0"
+authors = ["Bradley Bath <badfitz66@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ggez = "0.7"
+glam = { version = "0.20.1", default-features = false }
