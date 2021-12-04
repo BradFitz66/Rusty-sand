@@ -1,44 +1,62 @@
-use ggez::{Context, ContextBuilder, GameResult};
-use ggez::graphics::{self, Color, Text};
-use ggez::event::{self, EventHandler};
-use glam::*;
+//Disable annoying warnings
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+mod world;
+use bevy::prelude::*;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use world::*;
+
+const WIDTH:usize=100;
+const HEIGHT:usize=100;
+const PIXEL_SIZE:usize=4;
+const WINDOW_WIDTH:usize=WIDTH*PIXEL_SIZE;
+const WINDOW_HEIGHT:usize=HEIGHT*PIXEL_SIZE;
+
 fn main() {
-    // Make a Context.
-    let (mut ctx, event_loop) = ContextBuilder::new("falling_sand_game", "DucktorCid/Badfitz67")
-        .build()
-        .expect("aieee, could not create ggez context!");
-
-    // Create an instance of your event handler.
-    // Usually, you should provide it with the Context object to
-    // use when setting your game up.
-    let my_game = MyGame::new(&mut ctx);
-
-    // Run!
-    event::run(ctx, event_loop, my_game);
+    App::build()
+    .insert_resource(ClearColor(Color::rgb(130.0/255.0, 163.0/255.0, 1.0)))
+    .insert_resource(WindowDescriptor{
+        title:"I am a window!".to_string(),
+        width:(WINDOW_WIDTH as f32),
+        height:(WINDOW_HEIGHT as f32),
+        vsync:false,
+        resizable:false,
+        decorations:true,
+        ..Default::default()
+    })
+    .add_plugins(DefaultPlugins)
+    .add_startup_system(create_particle_world.system())
+    .add_system(dump_sand.system())
+    .add_system(change_title.system())
+    .run();
 }
 
-struct MyGame {
-    // Your state here...
+fn change_title(time: Res<Time>, mut windows: ResMut<Windows>) {
+    let window = windows.get_primary_mut().unwrap();
+
 }
 
-impl MyGame {
-    pub fn new(_ctx: &mut Context) -> MyGame {
-        MyGame {
+fn dump_sand(mut universe_query: Query<&mut Universe>) {
+    for mut universe in universe_query.iter_mut() {
+        universe.set_cell_at(10,10,ParticleTypes::Sand);
+        assert_eq!(universe.get_cell_at(10, 10).particle_type,ParticleTypes::Sand);
+    }
+
+}
+
+
+fn create_particle_world(mut commands: Commands) {
+    let mut universe = Universe::new(WIDTH,HEIGHT,PIXEL_SIZE);
+
+    for x in 0..(universe.width as usize){
+        for y in 0..5{
+            universe.set_cell_at(x, y, ParticleTypes::Sand)
         }
     }
-}
+    //Quick tests to make sure that the sand was, most likely, correct placed.
+    assert_eq!(universe.get_cell_at(0, 0).particle_type,ParticleTypes::Sand);
+    assert_eq!(universe.get_cell_at(0, 4).particle_type,ParticleTypes::Sand);
 
-impl EventHandler for MyGame {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        Ok(())
-    }
-
-    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        graphics::clear(ctx, Color::WHITE);
-        let fpsText = Text::new(format!("FPS:{}",ggez::timer::fps(ctx)));
-
-        graphics::draw(ctx,&fpsText,(Vec2::new(0.0,0.0),Color::BLACK))?;
-
-        graphics::present(ctx)
-    }
+    commands.spawn().insert(universe);
 }
