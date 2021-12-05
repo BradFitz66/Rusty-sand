@@ -2,15 +2,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]
-macro_rules! hashmap {
-    ($( $key: expr => $val: expr ),*) => {{
-         let mut map = ::std::collections::HashMap::new();
-         $( map.insert($key, $val); )*
-         map
-    }}
-}
-
-
 mod world;
 use bevy::{app::AppExit, prelude::*, window::WindowResizeConstraints};
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -38,8 +29,6 @@ fn main() {
     .add_plugin(PixelsPlugin)
     .add_startup_system(create_particle_world.system())
     .add_system(draw_world.system())
-    .add_system(dump_sand.system())
-    .add_system(change_title.system())
     .run();
     
 }
@@ -68,22 +57,7 @@ fn draw_world(mut pixels_resource: ResMut<PixelsResource>, mut universe_query: Q
             }
         }       
     }
-
-
 }
-
-fn change_title(time: Res<Time>, mut windows: ResMut<Windows>) {
-    let window = windows.get_primary_mut().unwrap();
-
-}
-
-fn dump_sand(mut universe_query: Query<&mut Universe>) {
-    for mut universe in universe_query.iter_mut() {
-        universe.set_cell_at(10,10,ParticleTypes::Sand);
-        assert_eq!(universe.get_cell_at(10, 10).particle_type,ParticleTypes::Sand);
-    }
-}
-
 
 fn create_particle_world(mut commands: Commands) {
     let mut universe = Universe::new(WIDTH,HEIGHT,PIXEL_SIZE);
@@ -93,7 +67,7 @@ fn create_particle_world(mut commands: Commands) {
             universe.set_cell_at(x, y, ParticleTypes::Sand)
         }
     }
-    //Quick tests to make sure that the sand was, most likely, correct placed.
+    //Quick tests to make sure that the sand was, most likely, correctly placed.
     assert_eq!(universe.get_cell_at(0, 0).particle_type,ParticleTypes::Sand);
     assert_eq!(universe.get_cell_at(0, 4).particle_type,ParticleTypes::Sand);
 
