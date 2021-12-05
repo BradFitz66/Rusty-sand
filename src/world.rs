@@ -6,6 +6,8 @@ pub enum ParticleTypes{
     Sand=2,
 }
 
+
+
 impl fmt::Display for ParticleTypes{
     fn fmt(&self, f: &mut fmt::Formatter)->fmt::Result{
         write!(f,"{:?}",self)
