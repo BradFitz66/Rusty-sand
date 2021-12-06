@@ -1,4 +1,5 @@
 use std::*;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParticleTypes{
     Air=0,
@@ -17,7 +18,9 @@ impl fmt::Display for ParticleTypes{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParticleCell{
     pub particle_type: ParticleTypes,
-    pub particle_timer:i8
+    pub particle_timer:i8,
+    pub x:i16,
+    pub y:i16
 }
 
 impl ParticleCell{
@@ -25,7 +28,7 @@ impl ParticleCell{
         match self.particle_type{
             ParticleTypes::Air=>{}
             ParticleTypes::Wall=>{}
-            ParticleTypes::Sand=>{}
+            ParticleTypes::Sand=>update_sand()
         }
     }
 }
@@ -35,18 +38,18 @@ pub struct Universe{
     pub particles: Vec<ParticleCell>,
     pub width:usize,
     pub height:usize,
-    pub pixel_size:usize
+    pub pixel_size:usize,
 }
 
 
 impl<'a> Universe{
     pub fn new(width:usize, height:usize,pixel_size:usize)->Universe{
-        let particles = (0..width * height).map(|_i| ParticleCell{particle_type:ParticleTypes::Air,particle_timer:0}).collect();
+        let particles = (0..width * height).map(|_i| ParticleCell{particle_type:ParticleTypes::Air,particle_timer:0,x:(_i/width) as i16,y:(_i%height) as i16}).collect();
         Universe{
             particles,
             width,
             height,
-            pixel_size
+            pixel_size,
         }
     }
 
@@ -66,4 +69,9 @@ impl<'a> Universe{
         let index = self.get_index(x, y);
         self.particles[index]
     }
+}
+
+
+pub fn update_sand(){
+    
 }
