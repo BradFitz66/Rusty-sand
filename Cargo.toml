@@ -8,5 +8,7 @@ resolver="2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pixels="0.8.0"
-beryllium = { version = "0.3", features = ["extern_crate_raw_window_handle"] }
+bevy = { version = "0.5", default_features = false }
+bevy_pixels = "0.1"
+rand = "0.8.4"
+rand_isaac = "0.3.0"
