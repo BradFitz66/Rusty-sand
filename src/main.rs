@@ -1,20 +1,14 @@
+#![deny(clippy::all)]
 #![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(unused_mut)]
-#[deny(clippy::int_plus_one)]
-
 
 //Modules
 mod lib;
 
 //Imports
+use beryllium::*;
+use pixels::{Pixels, SurfaceTexture};
 use lib::Universe;
-use bevy::{app::AppExit, prelude::*, window::WindowResizeConstraints};
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy_pixels::prelude::*;
 
 //Constants
 const WIDTH: u32 = 100;
@@ -23,102 +17,89 @@ const PIXEL_SIZE:u32 = 4;
 const WINDOW_WIDTH: u32 = WIDTH * PIXEL_SIZE;
 const WINDOW_HEIGHT: u32 = HEIGHT * PIXEL_SIZE;
 
-
-#[derive(Default)]
-struct MouseState{
-    x:f32,
-    y:f32
+/// Representation of the application state. In this example, a box will bounce around the screen.
+struct FallingSandState {
+    universe: Universe,
 }
 
-fn main() {
-    App::build()
-    .insert_resource(WindowDescriptor{
-        title:"I am a window!".to_string(),
-        width:(WINDOW_WIDTH as f32),
-        height:(WINDOW_HEIGHT as f32),
-        vsync:false,
-        resizable:false,
-        decorations:true,
-        ..Default::default()
-    })
-    .insert_resource(PixelsOptions {
-        width: WIDTH,
-        height: HEIGHT,
-    })    
-    .add_plugins(DefaultPlugins)
-    .add_plugin(PixelsPlugin)
-    .add_startup_system_to_stage(StartupStage::PostStartup, dump_sand.system())
-    .add_startup_system(create_particle_world.system())
-    .add_system(set_pixels_size.system())
-    .add_system(change_title.system())
-    .add_system(update_universe.system())
-    .add_system(painting.system().config(|params|{
-        params.4 = Some(MouseState{
-            x:0.0,
-            y:0.0
-        })
-    }))
-    .run();
-    
-}
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let sdl = SDL::init(InitFlags::default())?;
+    let window =
+        sdl.create_raw_window("Hello Pixels", WindowPosition::Centered, WINDOW_WIDTH, WINDOW_HEIGHT, 0)?;
 
-fn set_pixels_size(mut pixels_resource: ResMut<PixelsResource>){
-    pixels_resource.pixels.resize_surface(WINDOW_WIDTH,WINDOW_HEIGHT);
-}
+    let mut pixels = {
+        // TODO: Beryllium does not expose the SDL2 `GetDrawableSize` APIs, so choosing the correct
+        // surface texture size is not possible.
+        let surface_texture = SurfaceTexture::new(WINDOW_WIDTH, WINDOW_HEIGHT, &window);
+        Pixels::new(WINDOW_WIDTH, WINDOW_HEIGHT, surface_texture)?
+    };
+    let mut falling_sand_state= FallingSandState::new();
+    for x in 0..WIDTH-1{
+        for y in 0..15 {
+            falling_sand_state.universe.set_cell_at(x as usize, y, lib::ParticleTypes::Sand)
+        }
+    }
+    'game_loop: loop {
+        match sdl.poll_events().and_then(Result::ok) {
+            // Close events
+            Some(Event::Quit { .. }) => break 'game_loop,
+            Some(Event::Keyboard(KeyboardEvent {
+                key: KeyInfo { keycode: key, .. },
+                ..
+            })) if key == Keycode::ESCAPE => break 'game_loop,
 
-fn painting(buttons: Res<Input<MouseButton>>, 
-            mut pixels_resource: ResMut<PixelsResource>,
-            mut cursor_evr: EventReader<CursorMoved>,
-            mut universe_query: Query<&mut Universe>,
-            mut state: Local<MouseState>) 
-{
-    let mut frame = pixels_resource.pixels.get_frame();
-    for ev in cursor_evr.iter() {
-        state.x = ev.position.x;
-        state.y = ev.position.y;
-        println!(
-            "New cursor position: X: {}, Y: {}, in Window ID: {:?}",
-            ev.position.x, ev.position.y, ev.id
-        );
+            // Resize the window
+            Some(Event::Window(WindowEvent {
+                event: WindowEventEnum::Resized { w, h },
+                ..
+            })) => pixels.resize_surface(w as u32, h as u32),
+
+            _ => (),
+        }
+
+        // Update internal state
+        falling_sand_state.update();
+
+        // Draw the current frame
+        falling_sand_state.draw(pixels.get_frame());
+        pixels.render()?;
     }
 
-    if buttons.pressed(MouseButton::Left) {
-        println!("Left pressed");
-        for mut universe in universe_query.iter_mut() {
-            universe.set_cell_at((state.x as u32)/PIXEL_SIZE,(state.y as u32)/PIXEL_SIZE,lib::ParticleTypes::Sand,frame);
-        }     
-    }
+    Ok(())
 }
 
-fn update_universe(mut universe_query: Query<&mut Universe>,mut pixels_resource: ResMut<PixelsResource>){
-    for mut universe in universe_query.iter_mut() {
-        universe.universe_timer=universe.universe_timer.wrapping_add(1);
-        for x in 0..universe.width{
-            for y in 0..universe.height{
-                universe.get_cell_at(x,y).update(&mut *universe,pixels_resource.pixels.get_frame());
+impl FallingSandState {
+    /// Create a new `FallingSandState
+    ///` instance that can draw a moving box.
+    fn new() -> Self {
+        Self {
+            universe:Universe::new(WIDTH as usize, HEIGHT as usize, PIXEL_SIZE as usize)
+        }
+    }
+
+    /// Update the `FallingSandState
+    ///` internal state; bounce the box around the screen.
+    fn update(&mut self) {
+        
+    }
+
+    /// Draw the `FallingSandState
+    ///` state to the frame buffer.
+    ///
+    /// Assumes the default texture format: `wgpu::TextureFormat::Rgba8UnormSrgb`
+    fn draw(&mut self, frame: &mut [u8]) {
+        let mut i = 0;
+        for x in 0..self.universe.width{
+            for y in 0..self.universe.height{
+                if(self.universe.get_cell_at(x, y).particle_type==lib::ParticleTypes::Sand){
+                    let frame_i = i * 4;
+                    frame[frame_i] = 255;
+                    frame[frame_i + 1] = 0;
+                    frame[frame_i + 2] = 0;
+                    frame[frame_i + 3] = 255;
+                }
+                i+=1;
             }
         }
     }
-}
-
-fn change_title(time: Res<Time>, mut windows: ResMut<Windows>) {
-    let window = windows.get_primary_mut().unwrap();
-}
-
-fn dump_sand(mut universe_query: Query<&mut Universe>, mut pixels_resource: ResMut<PixelsResource>) {
-    let mut frame =pixels_resource.pixels.get_frame();
-    let lines=2;
-    for mut universe in universe_query.iter_mut() {
-        for x in 0..universe.width{
-            for y in 0..lines{
-                universe.set_cell_at(x,y,lib::ParticleTypes::Sand,frame);
-            }
-        }
-    }
-}
-
-
-fn create_particle_world(mut commands: Commands) {
-    let mut universe = Universe::new(WIDTH,HEIGHT,PIXEL_SIZE);
-    commands.spawn().insert(universe);
 }
