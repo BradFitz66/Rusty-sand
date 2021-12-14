@@ -138,7 +138,7 @@ impl Universe{
             ParticleCell{
                 particle_timer:0,
                 particle_type:ParticleTypes::Wall,
-                pos:Point{x:x,y:y}
+                pos:Point{x,y}
             }
         }
     }
@@ -151,53 +151,50 @@ pub fn update_sand(cell:&mut ParticleCell, universe:&mut Universe, frame: &mut [
     }
     let uni_timer = universe.universe_timer;
     let our_pos=cell.pos;
-    let neighbours: [ParticleTypes;8]=[
+    let mut new_pos:Point = cell.pos;
+    let neighbours: [bool;8]=[
         //Above/below
-      universe.get_cell_at(our_pos.x,our_pos.y.wrapping_add(1)).particle_type, //0
-      universe.get_cell_at(our_pos.x,our_pos.y.wrapping_sub(1)).particle_type, //1
+      universe.get_cell_at(our_pos.x,our_pos.y.wrapping_add(1)).particle_type==ParticleTypes::Air, //0 (down)
+      universe.get_cell_at(our_pos.x,our_pos.y.wrapping_sub(1)).particle_type==ParticleTypes::Air, //1 (up)
         //Left/right
-      universe.get_cell_at(our_pos.x.wrapping_add(1),our_pos.y).particle_type, //2
-      universe.get_cell_at(our_pos.x.wrapping_sub(1),our_pos.y).particle_type, //3
+      universe.get_cell_at(our_pos.x.wrapping_add(1),our_pos.y).particle_type==ParticleTypes::Air, //2 (right)
+      universe.get_cell_at(our_pos.x.wrapping_sub(1),our_pos.y).particle_type==ParticleTypes::Air, //3 (left)
         //Diagonals
-      universe.get_cell_at(our_pos.x.wrapping_add(1),our_pos.y.wrapping_add(1) ).particle_type,//4
-      universe.get_cell_at(our_pos.x.wrapping_sub(1),our_pos.y.wrapping_sub(1) ).particle_type,//5
-      universe.get_cell_at(our_pos.x.wrapping_add(1),our_pos.y.wrapping_sub(1) ).particle_type,//6
-      universe.get_cell_at(our_pos.x.wrapping_sub(1),our_pos.y.wrapping_add(1) ).particle_type,//7
+      universe.get_cell_at(our_pos.x.wrapping_add(1),our_pos.y.wrapping_add(1) ).particle_type==ParticleTypes::Air,//4 (down right)
+      universe.get_cell_at(our_pos.x.wrapping_sub(1),our_pos.y.wrapping_sub(1) ).particle_type==ParticleTypes::Air,//5 (up left)
+      universe.get_cell_at(our_pos.x.wrapping_add(1),our_pos.y.wrapping_sub(1) ).particle_type==ParticleTypes::Air,//6 (up right)
+      universe.get_cell_at(our_pos.x.wrapping_sub(1),our_pos.y.wrapping_add(1) ).particle_type==ParticleTypes::Air,//7 (down left)
     ];
     
-    if neighbours[0]==ParticleTypes::Air {
-        universe.set_cell_at(our_pos.x, our_pos.y, ParticleTypes::Air,frame);
-        universe.set_cell_at(our_pos.x, our_pos.y.wrapping_add(1), cell.particle_type,frame);
-        let mut new_cell=universe.get_mutable_cell_at(our_pos.x, our_pos.y.wrapping_add(1));
-        new_cell.particle_timer=uni_timer.wrapping_add(1);  
-    }
-    else if neighbours[0]!=ParticleTypes::Air && neighbours[4]==ParticleTypes::Air && neighbours[7]==ParticleTypes::Air{
-        //Have empty spaces to the bottom left and right. Choose a random direction.
-        
-        let dir_array:[i32;2] =[-1,1];
-        let dir = dir_array.choose(&mut rand::thread_rng());
-
-        
-        universe.set_cell_at(our_pos.x, our_pos.y, ParticleTypes::Air,frame);
-        match dir{
-            Some(1) => {universe.set_cell_at(our_pos.x.wrapping_add(1), our_pos.y.wrapping_add(1), cell.particle_type,frame);}
-            Some(-1) => {universe.set_cell_at(our_pos.x.wrapping_sub(1), our_pos.y.wrapping_add(1), cell.particle_type,frame);}
-            _=>{}
+    //up, right, left, down right, down left
+    match(neighbours[0],neighbours[2],neighbours[3],neighbours[4],neighbours[7]){
+        (true,..)=>{
+            new_pos.y=new_pos.y.wrapping_add(1);
         }
+        (false,true,true,true,true)=>{
+            let dir_array:[i32;2] =[-1,1];
+            let dir = dir_array.choose(&mut rand::thread_rng());
 
+            
+            universe.set_cell_at(our_pos.x, our_pos.y, ParticleTypes::Air,frame);
+            match dir{
+                Some(1) => {new_pos.x=our_pos.x.wrapping_add(1); new_pos.y=our_pos.y.wrapping_add(1);}
+                Some(-1) => {new_pos.x=our_pos.x.wrapping_sub(1); new_pos.y=our_pos.y.wrapping_add(1);}
+                _=>{}
+            }        
+        }
+        (false,true,false,true,false)=>{
+            new_pos.x=our_pos.x.wrapping_add(1); 
+            new_pos.y=our_pos.y.wrapping_add(1);
+        }
+        (false,false,true,false,true)=>{
+            new_pos.x=our_pos.x.wrapping_add(1); 
+            new_pos.y=our_pos.y.wrapping_add(1);
+        }
+        _=>{}
     }
-    else if neighbours[0]!=ParticleTypes::Air && neighbours[4]!=ParticleTypes::Air && neighbours[7]==ParticleTypes::Air{
-        //Empty space only to bottom right
-        universe.set_cell_at(our_pos.x, our_pos.y, ParticleTypes::Air,frame);
-        universe.set_cell_at(our_pos.x.wrapping_sub(1), our_pos.y.wrapping_add(1), cell.particle_type,frame);
-        
-    }
-    else if neighbours[0]!=ParticleTypes::Air && neighbours[4]==ParticleTypes::Air && neighbours[7]!=ParticleTypes::Air{
-        //Empty space only to bottom left
-        universe.set_cell_at(our_pos.x, our_pos.y, ParticleTypes::Air,frame);
-        universe.set_cell_at(our_pos.x.wrapping_add(1), our_pos.y.wrapping_add(1), cell.particle_type,frame);
-        
-    }
-
-    
+    universe.set_cell_at(our_pos.x, our_pos.y, ParticleTypes::Air,frame);
+    universe.set_cell_at(new_pos.x, new_pos.y, cell.particle_type,frame);
+    let mut new_cell=universe.get_mutable_cell_at(new_pos.x, new_pos.y);
+    new_cell.particle_timer=uni_timer.wrapping_add(1);
 }
